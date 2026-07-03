@@ -273,14 +273,27 @@ const OMC_HOOK_FILENAMES = new Set([
     'stop-continuation.mjs',
     'workflow-drift-guard.mjs',
 ]);
-const OMC_HOOK_HELPER_FILENAMES = new Set([
-    'atomic-write.mjs',
-    'config-dir.mjs',
-    'config-dir.sh',
-    'model-routing-override-message.mjs',
-    'state-root.mjs',
-    'stdin.mjs',
-]);
+function listTemplateHookLibFilenames() {
+    const templatesLibDir = join(getPackageDir(), 'templates', 'hooks', 'lib');
+    const filenames = new Set();
+    try {
+        for (const filename of readdirSync(templatesLibDir)) {
+            if (statSync(join(templatesLibDir, filename)).isFile()) {
+                filenames.add(filename);
+            }
+        }
+    }
+    catch {
+        // Missing/unreadable templates are handled by the copy path when setup runs.
+    }
+    return filenames;
+}
+function listStandaloneHookLibPayloadFilenames() {
+    const filenames = listTemplateHookLibFilenames();
+    filenames.add('config-dir.mjs');
+    filenames.add('config-dir.sh');
+    return filenames;
+}
 const OMC_HOOK_EXTRA_FILENAMES = new Set([
     'find-node.sh',
 ]);
@@ -303,7 +316,7 @@ function getShippedStandaloneHookPayloadPath(filename, location) {
         }
         return null;
     }
-    if (!OMC_HOOK_HELPER_FILENAMES.has(filename)) {
+    if (!listStandaloneHookLibPayloadFilenames().has(filename)) {
         return null;
     }
     if (filename === 'config-dir.mjs' || filename === 'config-dir.sh') {
@@ -439,7 +452,7 @@ function pruneLegacyStandaloneHookScripts(log) {
     const hooksLibDir = join(HOOKS_DIR, 'lib');
     if (existsSync(hooksLibDir)) {
         for (const filename of readdirSync(hooksLibDir)) {
-            if (!OMC_HOOK_HELPER_FILENAMES.has(filename)) {
+            if (!listStandaloneHookLibPayloadFilenames().has(filename)) {
                 continue;
             }
             const targetPath = join(hooksLibDir, filename);
@@ -621,10 +634,15 @@ function ensureStandaloneHookScripts(log) {
             mkdirSync(hooksLibDir, { recursive: true });
         }
         for (const filename of readdirSync(templatesLibDir)) {
-            if (!filename.endsWith('.mjs') || filename === 'config-dir.mjs') {
+            const sourcePath = join(templatesLibDir, filename);
+            try {
+                if (!statSync(sourcePath).isFile()) {
+                    continue;
+                }
+            }
+            catch {
                 continue;
             }
-            const sourcePath = join(templatesLibDir, filename);
             const targetPath = join(hooksLibDir, filename);
             copyFileSync(sourcePath, targetPath);
             if (!isWindows()) {

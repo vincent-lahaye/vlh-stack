@@ -3727,7 +3727,7 @@ var init_models = __esm({
     };
     CLAUDE_FAMILY_DEFAULTS = {
       HAIKU: "claude-haiku-4-5",
-      SONNET: "claude-sonnet-4-6",
+      SONNET: "claude-sonnet-5",
       OPUS: "claude-opus-4-8",
       FABLE: "claude-fable-5"
     };
@@ -5586,12 +5586,37 @@ function readWorkspaceMarkerConfig(workspaceRoot) {
     return {};
   }
 }
-function getWorktreeRoot(cwd2) {
+function resolveSuperprojectRoot(cwd2) {
+  let anchor = null;
+  let probeCwd = cwd2;
+  for (let depth = 0; depth < 32; depth++) {
+    let superRoot;
+    try {
+      superRoot = (0, import_child_process6.execSync)("git rev-parse --show-superproject-working-tree", {
+        cwd: probeCwd,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 5e3
+      }).trim();
+    } catch {
+      break;
+    }
+    if (!superRoot) break;
+    anchor = superRoot;
+    probeCwd = superRoot;
+  }
+  return anchor;
+}
+function resolveStateAnchorRoot(worktreeRoot) {
+  if (worktreeRoot) return resolveSuperprojectRoot(worktreeRoot) || worktreeRoot;
+  return getWorktreeRoot() || process.cwd();
+}
+function getGitTopLevel(cwd2) {
   const effectiveCwd = cwd2 || process.cwd();
-  if (worktreeCacheMap.has(effectiveCwd)) {
-    const root2 = worktreeCacheMap.get(effectiveCwd);
-    worktreeCacheMap.delete(effectiveCwd);
-    worktreeCacheMap.set(effectiveCwd, root2);
+  if (toplevelCacheMap.has(effectiveCwd)) {
+    const root2 = toplevelCacheMap.get(effectiveCwd);
+    toplevelCacheMap.delete(effectiveCwd);
+    toplevelCacheMap.set(effectiveCwd, root2);
     return root2 || null;
   }
   try {
@@ -5601,17 +5626,36 @@ function getWorktreeRoot(cwd2) {
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 5e3
     }).trim();
-    if (worktreeCacheMap.size >= MAX_WORKTREE_CACHE_SIZE) {
-      const oldest = worktreeCacheMap.keys().next().value;
-      if (oldest !== void 0) {
-        worktreeCacheMap.delete(oldest);
-      }
+    if (toplevelCacheMap.size >= MAX_WORKTREE_CACHE_SIZE) {
+      const oldest = toplevelCacheMap.keys().next().value;
+      if (oldest !== void 0) toplevelCacheMap.delete(oldest);
     }
-    worktreeCacheMap.set(effectiveCwd, root2);
+    toplevelCacheMap.set(effectiveCwd, root2);
     return root2;
   } catch {
     return null;
   }
+}
+function getWorktreeRoot(cwd2) {
+  const effectiveCwd = cwd2 || process.cwd();
+  if (worktreeCacheMap.has(effectiveCwd)) {
+    const root3 = worktreeCacheMap.get(effectiveCwd);
+    worktreeCacheMap.delete(effectiveCwd);
+    worktreeCacheMap.set(effectiveCwd, root3);
+    return root3 || null;
+  }
+  const root2 = resolveSuperprojectRoot(effectiveCwd) || getGitTopLevel(effectiveCwd);
+  if (!root2) {
+    return null;
+  }
+  if (worktreeCacheMap.size >= MAX_WORKTREE_CACHE_SIZE) {
+    const oldest = worktreeCacheMap.keys().next().value;
+    if (oldest !== void 0) {
+      worktreeCacheMap.delete(oldest);
+    }
+  }
+  worktreeCacheMap.set(effectiveCwd, root2);
+  return root2;
 }
 function validatePath(inputPath) {
   if (inputPath.includes("..")) {
@@ -5622,7 +5666,7 @@ function validatePath(inputPath) {
   }
 }
 function getProjectIdentifier(worktreeRoot) {
-  const root2 = worktreeRoot || getWorktreeRoot() || process.cwd();
+  const root2 = worktreeRoot || getGitTopLevel() || process.cwd();
   const workspaceRoot = findWorkspaceRoot(root2);
   if (workspaceRoot) {
     const cfg = readWorkspaceMarkerConfig(workspaceRoot);
@@ -5671,7 +5715,7 @@ function getProjectIdentifier(worktreeRoot) {
 function getOmcRoot(worktreeRoot) {
   const customDir = process.env.OMC_STATE_DIR;
   if (customDir) {
-    const root3 = worktreeRoot || getWorktreeRoot() || process.cwd();
+    const root3 = worktreeRoot || getGitTopLevel() || process.cwd();
     const projectId = getProjectIdentifier(root3);
     const centralizedPath = (0, import_path17.join)(customDir, projectId);
     const legacyPath = (0, import_path17.join)(root3, OmcPaths.ROOT);
@@ -5688,7 +5732,7 @@ function getOmcRoot(worktreeRoot) {
   if (workspaceAnchor) {
     return (0, import_path17.join)(workspaceAnchor, OmcPaths.ROOT);
   }
-  const root2 = worktreeRoot || getWorktreeRoot() || process.cwd();
+  const root2 = resolveStateAnchorRoot(worktreeRoot);
   return (0, import_path17.join)(root2, OmcPaths.ROOT);
 }
 function resolveOmcPath(relativePath, worktreeRoot) {
@@ -5828,15 +5872,16 @@ function ensureSessionStateDir(sessionId, worktreeRoot) {
   return sessionDir;
 }
 function resolveToWorktreeRoot(directory) {
+  const resolveRoot = process.env.OMC_STATE_DIR ? getGitTopLevel : getWorktreeRoot;
   if (directory) {
     const resolved = (0, import_path17.resolve)(directory);
-    const root2 = getWorktreeRoot(resolved);
+    const root2 = resolveRoot(resolved);
     if (root2) return root2;
     console.error("[worktree] non-git directory provided, falling back to process root", {
       directory: resolved
     });
   }
-  return getWorktreeRoot(process.cwd()) || process.cwd();
+  return resolveRoot(process.cwd()) || process.cwd();
 }
 function resolveTranscriptPath(transcriptPath, cwd2) {
   if (!transcriptPath) return void 0;
@@ -5898,7 +5943,7 @@ function resolveTranscriptPath(transcriptPath, cwd2) {
   return transcriptPath;
 }
 function validateWorkingDirectory(workingDirectory) {
-  const trustedRoot = getWorktreeRoot(process.cwd()) || process.cwd();
+  const trustedRoot = getGitTopLevel(process.cwd()) || process.cwd();
   if (!workingDirectory) {
     return trustedRoot;
   }
@@ -5909,7 +5954,7 @@ function validateWorkingDirectory(workingDirectory) {
   } catch {
     trustedRootReal = trustedRoot;
   }
-  const providedRoot = getWorktreeRoot(resolved);
+  const providedRoot = getGitTopLevel(resolved);
   if (providedRoot) {
     let providedRootReal;
     try {
@@ -5953,7 +5998,7 @@ function getGitCommonDir(cwd2) {
   }
 }
 function validateWorkingDirectoryOrLinkedWorktree(workingDirectory) {
-  const trustedRoot = getWorktreeRoot(process.cwd()) || process.cwd();
+  const trustedRoot = getGitTopLevel(process.cwd()) || process.cwd();
   if (!workingDirectory) {
     return trustedRoot;
   }
@@ -5964,7 +6009,7 @@ function validateWorkingDirectoryOrLinkedWorktree(workingDirectory) {
   } catch {
     trustedRootReal = trustedRoot;
   }
-  const providedRoot = getWorktreeRoot(resolved);
+  const providedRoot = getGitTopLevel(resolved);
   if (providedRoot) {
     let providedRootReal;
     try {
@@ -5999,7 +6044,7 @@ function validateWorkingDirectoryOrLinkedWorktree(workingDirectory) {
   }
   return trustedRoot;
 }
-var import_crypto4, import_child_process6, import_fs12, import_os4, import_path17, WORKSPACE_MARKER, OmcPaths, MAX_WORKTREE_CACHE_SIZE, worktreeCacheMap, workspaceCacheMap, dualDirWarnings, SESSION_ID_REGEX, processSessionId;
+var import_crypto4, import_child_process6, import_fs12, import_os4, import_path17, WORKSPACE_MARKER, OmcPaths, MAX_WORKTREE_CACHE_SIZE, worktreeCacheMap, toplevelCacheMap, workspaceCacheMap, dualDirWarnings, SESSION_ID_REGEX, processSessionId;
 var init_worktree_paths = __esm({
   "src/lib/worktree-paths.ts"() {
     "use strict";
@@ -6030,6 +6075,7 @@ var init_worktree_paths = __esm({
     };
     MAX_WORKTREE_CACHE_SIZE = 8;
     worktreeCacheMap = /* @__PURE__ */ new Map();
+    toplevelCacheMap = /* @__PURE__ */ new Map();
     workspaceCacheMap = /* @__PURE__ */ new Map();
     dualDirWarnings = /* @__PURE__ */ new Set();
     SESSION_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/;
@@ -7313,7 +7359,7 @@ function canClearStateForSession(state, sessionId) {
 }
 function resolveStateRoot(directory) {
   const baseDir = directory || process.cwd();
-  return getWorktreeRoot(baseDir) || baseDir;
+  return getGitTopLevel(baseDir) || baseDir;
 }
 function resolveFile(mode, directory, sessionId) {
   const baseDir = resolveStateRoot(directory);
@@ -10049,6 +10095,25 @@ function isOmcStatusLine(statusLine) {
   }
   return false;
 }
+function listTemplateHookLibFilenames() {
+  const templatesLibDir = (0, import_path49.join)(getPackageDir3(), "templates", "hooks", "lib");
+  const filenames = /* @__PURE__ */ new Set();
+  try {
+    for (const filename of (0, import_fs37.readdirSync)(templatesLibDir)) {
+      if ((0, import_fs37.statSync)((0, import_path49.join)(templatesLibDir, filename)).isFile()) {
+        filenames.add(filename);
+      }
+    }
+  } catch {
+  }
+  return filenames;
+}
+function listStandaloneHookLibPayloadFilenames() {
+  const filenames = listTemplateHookLibFilenames();
+  filenames.add("config-dir.mjs");
+  filenames.add("config-dir.sh");
+  return filenames;
+}
 function hashFileContents(path22) {
   try {
     return (0, import_crypto9.createHash)("sha256").update((0, import_fs37.readFileSync)(path22)).digest("hex");
@@ -10067,7 +10132,7 @@ function getShippedStandaloneHookPayloadPath(filename, location) {
     }
     return null;
   }
-  if (!OMC_HOOK_HELPER_FILENAMES.has(filename)) {
+  if (!listStandaloneHookLibPayloadFilenames().has(filename)) {
     return null;
   }
   if (filename === "config-dir.mjs" || filename === "config-dir.sh") {
@@ -10149,7 +10214,7 @@ function pruneLegacyStandaloneHookScripts(log3) {
   const hooksLibDir = (0, import_path49.join)(HOOKS_DIR, "lib");
   if ((0, import_fs37.existsSync)(hooksLibDir)) {
     for (const filename of (0, import_fs37.readdirSync)(hooksLibDir)) {
-      if (!OMC_HOOK_HELPER_FILENAMES.has(filename)) {
+      if (!listStandaloneHookLibPayloadFilenames().has(filename)) {
         continue;
       }
       const targetPath = (0, import_path49.join)(hooksLibDir, filename);
@@ -10313,10 +10378,14 @@ function ensureStandaloneHookScripts(log3) {
       (0, import_fs37.mkdirSync)(hooksLibDir, { recursive: true });
     }
     for (const filename of (0, import_fs37.readdirSync)(templatesLibDir)) {
-      if (!filename.endsWith(".mjs") || filename === "config-dir.mjs") {
+      const sourcePath = (0, import_path49.join)(templatesLibDir, filename);
+      try {
+        if (!(0, import_fs37.statSync)(sourcePath).isFile()) {
+          continue;
+        }
+      } catch {
         continue;
       }
-      const sourcePath = (0, import_path49.join)(templatesLibDir, filename);
       const targetPath = (0, import_path49.join)(hooksLibDir, filename);
       (0, import_fs37.copyFileSync)(sourcePath, targetPath);
       if (!isWindows()) {
@@ -11550,7 +11619,7 @@ function getInstallInfo() {
     return null;
   }
 }
-var import_fs37, import_crypto9, import_path49, import_url9, import_os12, import_child_process13, CLAUDE_CONFIG_DIR, AGENTS_DIR, COMMANDS_DIR, SKILLS_DIR, HOOKS_DIR, HUD_DIR, SETTINGS_FILE, VERSION_FILE, OMC_MANAGED_SKILL_MARKER, PLUGIN_FULL_SKILL_BODIES_DIR, PLUGIN_COMPACT_SKILL_SHIM_MARKER, CORE_COMMANDS, VERSION, OMC_VERSION_MARKER_PATTERN, CC_NATIVE_COMMANDS, SKININTHEGAMEBROS_ONLY_SKILLS, OMC_HOOK_FILENAMES, OMC_HOOK_HELPER_FILENAMES, OMC_HOOK_EXTRA_FILENAMES, STANDALONE_HOOK_TEMPLATE_FILES, PLUGIN_SYNC_PAYLOAD, REQUIRED_PLUGIN_PAYLOAD_FILES, REQUIRED_PLUGIN_COMMAND_FILES;
+var import_fs37, import_crypto9, import_path49, import_url9, import_os12, import_child_process13, CLAUDE_CONFIG_DIR, AGENTS_DIR, COMMANDS_DIR, SKILLS_DIR, HOOKS_DIR, HUD_DIR, SETTINGS_FILE, VERSION_FILE, OMC_MANAGED_SKILL_MARKER, PLUGIN_FULL_SKILL_BODIES_DIR, PLUGIN_COMPACT_SKILL_SHIM_MARKER, CORE_COMMANDS, VERSION, OMC_VERSION_MARKER_PATTERN, CC_NATIVE_COMMANDS, SKININTHEGAMEBROS_ONLY_SKILLS, OMC_HOOK_FILENAMES, OMC_HOOK_EXTRA_FILENAMES, STANDALONE_HOOK_TEMPLATE_FILES, PLUGIN_SYNC_PAYLOAD, REQUIRED_PLUGIN_PAYLOAD_FILES, REQUIRED_PLUGIN_COMMAND_FILES;
 var init_installer = __esm({
   "src/installer/index.ts"() {
     "use strict";
@@ -11612,14 +11681,6 @@ var init_installer = __esm({
       "code-simplifier.mjs",
       "stop-continuation.mjs",
       "workflow-drift-guard.mjs"
-    ]);
-    OMC_HOOK_HELPER_FILENAMES = /* @__PURE__ */ new Set([
-      "atomic-write.mjs",
-      "config-dir.mjs",
-      "config-dir.sh",
-      "model-routing-override-message.mjs",
-      "state-root.mjs",
-      "stdin.mjs"
     ]);
     OMC_HOOK_EXTRA_FILENAMES = /* @__PURE__ */ new Set([
       "find-node.sh"
@@ -16180,7 +16241,7 @@ function readHudConfig() {
   if (legacyConfig) {
     return mergeWithDefaults(legacyConfig);
   }
-  return DEFAULT_HUD_CONFIG;
+  return mergeWithDefaults({});
 }
 function mergeWithDefaults(config2) {
   const preset = config2.preset ?? DEFAULT_HUD_CONFIG.preset;
@@ -17967,7 +18028,7 @@ function isSafeRepoPath(cwd2, inputPath, options = {}) {
   if (!inputPath) {
     return false;
   }
-  const worktreeRoot = getWorktreeRoot(cwd2);
+  const worktreeRoot = getGitTopLevel(cwd2);
   if (!worktreeRoot) {
     return false;
   }
@@ -23630,6 +23691,32 @@ function isValidPaneId2(paneId) {
 function sanitizeForTmux(text) {
   return text.replace(/'/g, "'\\''");
 }
+function hasOmcRateLimitScreenText(content) {
+  return OMC_HUD_RATE_LIMIT_SCREEN_PATTERNS.some((pattern) => pattern.test(content));
+}
+function hasSavedTranscriptContext(content) {
+  return content.split("\n").some(
+    (line) => SAVED_TRANSCRIPT_COMMAND_PATTERN.test(line) || SAVED_TRANSCRIPT_LABEL_PATTERN.test(line)
+  );
+}
+function hasLiveOmcHudEvidence(content) {
+  if (hasSavedTranscriptContext(content)) {
+    return false;
+  }
+  const nonEmptyLines = content.split("\n").map((line) => line.trimEnd()).filter((line) => line.trim().length > 0);
+  const hudStatusIndex = nonEmptyLines.findIndex((line) => OMC_HUD_STATUS_LINE_PATTERN.test(line));
+  if (hudStatusIndex === -1) {
+    return false;
+  }
+  const modeLineIndex = nonEmptyLines.findIndex(
+    (line, index) => index > hudStatusIndex && OMC_HUD_MODE_LINE_PATTERN.test(line)
+  );
+  if (modeLineIndex === -1) {
+    return false;
+  }
+  const isFooterBlock = hudStatusIndex >= nonEmptyLines.length - 4 && modeLineIndex === nonEmptyLines.length - 1 && modeLineIndex - hudStatusIndex <= 2;
+  return isFooterBlock;
+}
 function stripGitOutputLines(content) {
   return content.split("\n").filter((line) => !GIT_OUTPUT_LINE_PATTERNS.some((p) => p.test(line.trimStart()))).join("\n");
 }
@@ -23725,9 +23812,9 @@ function analyzePaneContent(content) {
     };
   }
   const cleanedContent = stripGitOutputLines(content);
-  const hasClaudeCode = CLAUDE_CODE_PATTERNS.some(
-    (pattern) => pattern.test(cleanedContent)
-  );
+  const hasClaudeText = CLAUDE_CODE_PATTERNS.some((pattern) => pattern.test(cleanedContent));
+  const hasLiveOmcHud = hasLiveOmcHudEvidence(cleanedContent);
+  const hasClaudeCode = hasClaudeText || hasLiveOmcHud && hasOmcRateLimitScreenText(cleanedContent);
   const rateLimitMatches = RATE_LIMIT_PATTERNS.filter(
     (pattern) => pattern.test(cleanedContent)
   );
@@ -23842,7 +23929,7 @@ function formatBlockedPanesSummary(blockedPanes) {
   }
   return lines.join("\n");
 }
-var RATE_LIMIT_PATTERNS, CLAUDE_CODE_PATTERNS, WEEKLY_RATE_LIMIT_PATTERN, GIT_OUTPUT_LINE_PATTERNS, WAITING_PATTERNS;
+var RATE_LIMIT_PATTERNS, CLAUDE_CODE_PATTERNS, OMC_HUD_STATUS_LINE_PATTERN, OMC_HUD_MODE_LINE_PATTERN, SAVED_TRANSCRIPT_COMMAND_PATTERN, SAVED_TRANSCRIPT_LABEL_PATTERN, OMC_HUD_RATE_LIMIT_SCREEN_PATTERNS, WEEKLY_RATE_LIMIT_PATTERN, GIT_OUTPUT_LINE_PATTERNS, WAITING_PATTERNS;
 var init_tmux_detector = __esm({
   "src/features/rate-limit-wait/tmux-detector.ts"() {
     "use strict";
@@ -23872,6 +23959,16 @@ var init_tmux_detector = __esm({
       /claude code/i,
       /conversation/i,
       /assistant/i
+    ];
+    OMC_HUD_STATUS_LINE_PATTERN = /^\s*\[OMC#[^\]\s]*\]\s*\|.*\b(?:Model:|ctx:|session:|5h:|wk:|thinking)\b/i;
+    OMC_HUD_MODE_LINE_PATTERN = /^\s*⏵⏵\s+.*\(shift\+tab to cycle\)/i;
+    SAVED_TRANSCRIPT_COMMAND_PATTERN = /^\s*(?:[$#%]|❯)\s*(?:cat|bat|less|more|tail|head|sed|awk)\b.*(?:hud|transcript|terminal|output|copied|\.txt)\b/i;
+    SAVED_TRANSCRIPT_LABEL_PATTERN = /\b(?:copied\s+from|saved\s+terminal\s+output|terminal\s+transcript|copied\s+hud)\b/i;
+    OMC_HUD_RATE_LIMIT_SCREEN_PATTERNS = [
+      /you(?:'|’)ve\s+(?:hit|reached)\s+(?:your\s+)?(?:session\s+|usage\s+)?limit/i,
+      /\b(?:session|usage|weekly|5[- ]?hour)\s+(?:usage\s+)?(?:limit|quota|cap|allowance|allocation)\b/i,
+      /\blimit\s+resets?\b/i,
+      /stop\s+and\s+wait\s+for\s+limit\s+to\s+reset/i
     ];
     WEEKLY_RATE_LIMIT_PATTERN = /\bweekly\s+(?:usage\s+)?(?:limit|quota|cap|allowance|allocation)\b/i;
     GIT_OUTPUT_LINE_PATTERNS = [
@@ -30886,18 +30983,29 @@ async function verifyWorkerStartCommandDelivered(paneId, startCmd) {
   }
   return false;
 }
-async function verifyWorkerStartCommandSubmitted(paneId, startCmd) {
+function resolvePositiveIntegerEnv(name, fallback) {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+async function verifyWorkerStartCommandSubmitted(paneId, startCmd, opts = {}) {
   if (isCmuxSurfaceTarget(paneId)) return true;
   const expected = normalizeTmuxCapture(startCmd);
   const compactExpected = normalizeTmuxCaptureForDelivery(startCmd);
-  for (let attempt = 1; attempt <= 5; attempt++) {
+  const timeoutMs = Number.isFinite(opts.timeoutMs) && (opts.timeoutMs ?? 0) > 0 ? Number(opts.timeoutMs) : resolvePositiveIntegerEnv("OMC_TEAM_START_SUBMIT_TIMEOUT_MS", 8e3);
+  const maxPollIntervalMs = Number.isFinite(opts.maxPollIntervalMs) && (opts.maxPollIntervalMs ?? 0) > 0 ? Number(opts.maxPollIntervalMs) : 500;
+  let pollIntervalMs = Number.isFinite(opts.initialPollIntervalMs) && (opts.initialPollIntervalMs ?? 0) > 0 ? Number(opts.initialPollIntervalMs) : 50;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
     const captured = await capturePaneAsync(paneId, { joinWrappedLines: true });
     const normalizedCaptured = normalizeTmuxCapture(captured);
     const commandStillBuffered = normalizedCaptured.includes(expected) || compactExpected.length > 0 && normalizeTmuxCaptureForDelivery(captured).includes(compactExpected);
     if (!commandStillBuffered) {
       return true;
     }
-    await sleep4(50);
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await sleep4(Math.min(pollIntervalMs, remainingMs));
+    pollIntervalMs = Math.min(Math.max(pollIntervalMs * 2, pollIntervalMs + 1), maxPollIntervalMs);
   }
   return false;
 }
@@ -44999,6 +45107,13 @@ function clamp(v) {
   if (v == null || !isFinite(v)) return 0;
   return Math.max(0, Math.min(100, v));
 }
+function minorUnitDecimals(currency, decimalPlaces) {
+  if (decimalPlaces != null && Number.isInteger(decimalPlaces) && decimalPlaces >= 0 && decimalPlaces <= 4) {
+    return decimalPlaces;
+  }
+  if (currency === "USD") return 2;
+  return null;
+}
 function parseUsageResponse(response, options) {
   const fiveHour = response.five_hour?.utilization;
   const sevenDay = response.seven_day?.utilization;
@@ -45007,11 +45122,12 @@ function parseUsageResponse(response, options) {
   const extra = response.extra_usage;
   const usedCredits = extra?.used_credits;
   const extraCurrency = (extra?.currency ?? "USD").toUpperCase();
+  const minorDecimals = minorUnitDecimals(extraCurrency, extra?.decimal_places);
+  const minorDivisor = minorDecimals == null ? null : 10 ** minorDecimals;
   const isEnterpriseContext = isEnterpriseUsageContext(options);
-  const hasUsableUsedCredits = usedCredits != null && extraCurrency === "USD";
-  const hasUsableEnterprise = isEnterpriseContext && hasUsableUsedCredits;
+  const hasUsableEnterprise = isEnterpriseContext && usedCredits != null && minorDivisor != null;
   const hasUsableUsdExtraUsage = extra?.limit_usd != null && extra.limit_usd > 0;
-  const hasUsableCreditExtraUsage = !isEnterpriseContext && hasUsableUsedCredits && extra?.monthly_limit != null && extra.monthly_limit > 0;
+  const hasUsableCreditExtraUsage = !isEnterpriseContext && usedCredits != null && extraCurrency === "USD" && extra?.monthly_limit != null && extra.monthly_limit > 0;
   const hasUsableExtraUsage = hasUsableUsdExtraUsage || hasUsableCreditExtraUsage;
   if (fiveHour == null && sevenDay == null && sonnetSevenDay == null && opusSevenDay == null && !hasUsableEnterprise && !hasUsableExtraUsage) return null;
   const parseDate = (dateStr) => {
@@ -45042,11 +45158,12 @@ function parseUsageResponse(response, options) {
     result.opusWeeklyResetsAt = parseDate(opusResetsAt);
   }
   if (extra != null) {
-    const currency = (extra.currency ?? "USD").toUpperCase();
-    if (extra.used_credits != null && currency === "USD" && isEnterpriseContext) {
-      result.enterpriseSpentUsd = extra.used_credits / 100;
-      result.enterpriseLimitUsd = extra.monthly_limit == null ? null : extra.monthly_limit / 100;
+    const currency = extraCurrency;
+    if (extra.used_credits != null && minorDivisor != null && isEnterpriseContext) {
+      result.enterpriseSpentUsd = extra.used_credits / minorDivisor;
+      result.enterpriseLimitUsd = extra.monthly_limit == null ? null : extra.monthly_limit / minorDivisor;
       result.enterpriseCurrency = currency;
+      if (minorDecimals != null) result.enterpriseDecimalPlaces = minorDecimals;
       if (extra.monthly_limit != null && extra.monthly_limit > 0) {
         result.enterpriseUtilization = clamp(extra.used_credits / extra.monthly_limit * 100);
       }
@@ -47404,10 +47521,10 @@ function getColor2(percent) {
   if (percent >= WARNING_THRESHOLD2) return YELLOW7;
   return GREEN8;
 }
-function formatMoney(amount) {
-  const [intPart, decPart] = amount.toFixed(2).split(".");
+function formatMoney(amount, decimals) {
+  const [intPart, decPart] = amount.toFixed(decimals).split(".");
   const withCommas = (intPart ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${withCommas}.${decPart ?? "00"}`;
+  return decPart ? `${withCommas}.${decPart}` : withCommas;
 }
 function currencyPrefix(currency) {
   return currency.toUpperCase() === "USD" ? "$" : `${currency.toUpperCase()} `;
@@ -47417,11 +47534,12 @@ function renderEnterpriseCost(limits, stale) {
   const staleMarker = stale ? `${DIM5}*${RESET}` : "";
   const currency = limits.enterpriseCurrency ?? "USD";
   const prefix = currencyPrefix(currency);
-  const spentStr = formatMoney(limits.enterpriseSpentUsd);
+  const decimals = limits.enterpriseDecimalPlaces ?? 2;
+  const spentStr = formatMoney(limits.enterpriseSpentUsd, decimals);
   if (limits.enterpriseLimitUsd == null) {
     return `${DIM5}spent:${RESET}${prefix}${spentStr}${staleMarker}`;
   }
-  const limitStr = formatMoney(limits.enterpriseLimitUsd);
+  const limitStr = formatMoney(limits.enterpriseLimitUsd, decimals);
   const utilization = limits.enterpriseUtilization ?? 0;
   const rounded = Math.min(100, Math.max(0, Math.round(utilization)));
   const color = getColor2(rounded);
@@ -47555,8 +47673,15 @@ function renderCwd(cwd2, format = "relative", useHyperlinks = false) {
   let displayPath;
   switch (format) {
     case "relative": {
-      const home = (0, import_node_os5.homedir)();
-      displayPath = cwd2.startsWith(home) ? "~" + cwd2.slice(home.length) : cwd2;
+      const home = (0, import_node_os5.homedir)().replace(/\\/g, "/");
+      const normalizedCwd = cwd2.replace(/\\/g, "/");
+      if (normalizedCwd === home) {
+        displayPath = "~";
+      } else if (normalizedCwd.startsWith(`${home}/`)) {
+        displayPath = "~" + normalizedCwd.slice(home.length);
+      } else {
+        displayPath = cwd2;
+      }
       break;
     }
     case "absolute":
@@ -47565,7 +47690,7 @@ function renderCwd(cwd2, format = "relative", useHyperlinks = false) {
     case "folder": {
       const parent = (0, import_node_path17.basename)((0, import_node_path17.dirname)(cwd2));
       const folder = (0, import_node_path17.basename)(cwd2);
-      displayPath = parent ? (0, import_node_path17.join)(parent, folder) : folder;
+      displayPath = parent ? `${parent}/${folder}` : folder;
       break;
     }
     default:
@@ -47886,6 +48011,8 @@ var init_multi_repo = __esm({
 function extractVersion(modelId) {
   const idMatch = modelId.match(/(?:opus|sonnet|haiku)-(\d+)-(\d+)/i);
   if (idMatch) return `${idMatch[1]}.${idMatch[2]}`;
+  const singleSegmentIdMatch = modelId.match(/(?:^|[.-])claude-(?:opus|sonnet|haiku)-(\d+)$/i);
+  if (singleSegmentIdMatch) return singleSegmentIdMatch[1];
   const legacyIdMatch = modelId.match(/claude-(\d+)(?:-(\d+))?-(?:opus|sonnet|haiku)/i);
   if (legacyIdMatch) {
     return legacyIdMatch[2] ? `${legacyIdMatch[1]}.${legacyIdMatch[2]}` : legacyIdMatch[1];
@@ -75294,7 +75421,7 @@ function validateToolPath(inputPath) {
   if (!isToolPathRestricted()) {
     return resolved;
   }
-  const projectRoot = getWorktreeRoot() || process.cwd();
+  const projectRoot = getGitTopLevel() || process.cwd();
   const normalizedRoot = (0, import_path19.normalize)(projectRoot);
   const normalizedPath = (0, import_path19.normalize)(resolved);
   const rel = (0, import_path19.relative)(normalizedRoot, normalizedPath);
@@ -83546,6 +83673,17 @@ function isWithinQuotedSpan(text, position) {
   }
   return false;
 }
+function findQuotedSpanBounds(text, position) {
+  for (const match of text.matchAll(QUOTED_SPAN_PATTERN)) {
+    if (match.index === void 0) continue;
+    const start = match.index;
+    const end = start + match[0].length;
+    if (position >= start && position < end) {
+      return { start, end };
+    }
+  }
+  return null;
+}
 function stripQuotedSpans(text) {
   return text.replace(QUOTED_SPAN_PATTERN, " ");
 }
@@ -83586,6 +83724,20 @@ function hasDirectInvocationPrefix(text, position) {
   const prefix = text.slice(0, position);
   return /^\s*(?:[$/!]\s*|force:\s*|oh-my-(?:claudecode|codex):\s*)?$/i.test(prefix);
 }
+function hasConversationalInvocationNearKeyword(text, position, _keywordLength, _keywordText) {
+  if (isWithinQuotedSpan(text, position)) {
+    return false;
+  }
+  const start = Math.max(0, position - INFORMATIONAL_CONTEXT_WINDOW2);
+  const prefix = stripQuotedSpans(text.slice(start, position));
+  const conversationalInvocationPatterns = [
+    /\bplease\s+$/i,
+    /\blet['’]?s\s+$/i,
+    /\bi\s+(?:want|need|would\s+like)\s+(?:a|an)\s+$/i,
+    /\b(?:can|could|would|will)\s+you\s+$/i
+  ];
+  return conversationalInvocationPatterns.some((pattern) => pattern.test(prefix));
+}
 function hasExplicitInvocationContext(text, position, keywordLength, keywordText) {
   if (hasDirectInvocationPrefix(text, position)) {
     return true;
@@ -83596,17 +83748,7 @@ function hasExplicitInvocationContext(text, position, keywordLength, keywordText
   if (hasActivationIntentNearKeyword(context, keywordText)) {
     return true;
   }
-  const escaped = escapeRegExp2(keywordText.trim());
-  if (!escaped) {
-    return false;
-  }
-  const conversationalInvocationPatterns = [
-    new RegExp(`\\bplease\\s+${escaped}\\b`, "i"),
-    new RegExp(`\\blet['\u2019]?s\\s+${escaped}\\b`, "i"),
-    new RegExp(`\\bi\\s+(?:want|need|would\\s+like)\\s+(?:a|an)\\s+${escaped}\\b`, "i"),
-    new RegExp(`\\b(?:can|could|would|will)\\s+you\\s+${escaped}\\b`, "i")
-  ];
-  return conversationalInvocationPatterns.some((pattern) => pattern.test(context));
+  return hasConversationalInvocationNearKeyword(text, position, keywordLength, keywordText);
 }
 function hasDiagnosticIntentNearKeyword(context, keyword) {
   const escaped = escapeRegExp2(keyword.trim());
@@ -83657,9 +83799,18 @@ function isInformationalKeywordContext2(text, position, keywordLength, keywordTe
   const line = text.slice(lineBounds.start, lineBounds.end);
   const questionOutsideQuotes = stripQuotedSpans(text);
   const keywordInsideQuotes = isWithinQuotedSpan(text, position);
+  const hasExecutionDirective = /\b(?:fix|debug|investigate|resolve|handle|patch|address|implement|build)\b/i.test(context);
+  if (keywordInsideQuotes) {
+    const span = findQuotedSpanBounds(text, position);
+    const hasGenuineCommandNearQuote = span ? /\b(?:fix|debug|investigate|resolve|handle|patch|address|implement|build|use|run|start|enable|activate|invoke|trigger|launch)\b/i.test(
+      text.slice(Math.max(0, span.start - 28), span.start) + " " + text.slice(span.end, Math.min(text.length, span.end + 28))
+    ) : hasExecutionDirective;
+    if (!hasGenuineCommandNearQuote) {
+      return true;
+    }
+  }
   if (keywordText) {
     const hasActivationIntent = hasActivationIntentNearKeyword(context, keywordText);
-    const hasExecutionDirective = /\b(?:fix|debug|investigate|resolve|handle|patch|address|implement|build)\b/i.test(context);
     if (hasActivationIntent && hasExecutionDirective) {
       return false;
     }
@@ -83667,6 +83818,9 @@ function isInformationalKeywordContext2(text, position, keywordLength, keywordTe
       return true;
     }
     if (hasActivationIntent) {
+      return false;
+    }
+    if (hasConversationalInvocationNearKeyword(text, position, keywordLength, keywordText)) {
       return false;
     }
     if (isRalphUltraworkMetaOrBanterContext(context, keywordText)) {
