@@ -913,16 +913,39 @@ function hasExplicitActionableKeyword(text, pattern) {
   return false;
 }
 
-function hasActionableRalphKeyword(text, pattern) {
+function isNonInvocationRalphMention(searchText, rawSearchText, position, keywordLength, keywordText) {
+  if ((keywordText || '').toLowerCase() !== 'ralph') {
+    return false;
+  }
+
+  const suffix = searchText.slice(position + keywordLength);
+  if (/^-[a-z0-9]/i.test(suffix)) {
+    return true;
+  }
+
+  const rawPrefix = rawSearchText.slice(0, position);
+  const rawKeyword = rawSearchText.slice(position, position + keywordLength);
+  const rawSuffix = rawSearchText.slice(position + keywordLength);
+  return /^\s*$/.test(rawPrefix) && rawKeyword === 'Ralph' && /^\s+[A-Z]/.test(rawSuffix);
+}
+
+function hasActionableRalphKeyword(text, pattern, rawText = text) {
   const searchText = looksLikeSystemEcho(text)
     ? stripSystemEchoes(text)
     : text;
+  const rawSearchText = looksLikeSystemEcho(rawText)
+    ? stripSystemEchoes(rawText)
+    : rawText;
 
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
   const globalPattern = new RegExp(pattern.source, flags);
 
   for (const match of searchText.matchAll(globalPattern)) {
     if (match.index === undefined) {
+      continue;
+    }
+
+    if (isNonInvocationRalphMention(searchText, rawSearchText, match.index, match[0].length, match[0])) {
       continue;
     }
 
@@ -1445,6 +1468,7 @@ async function main() {
     const cleanPrompt = stripSystemEchoes(
       sanitizeForKeywordDetection(prompt).toLowerCase(),
     );
+    const rawCleanPrompt = stripSystemEchoes(sanitizeForKeywordDetection(prompt));
 
     // Collect all matching keywords
     const matches = [];
@@ -1455,7 +1479,7 @@ async function main() {
     }
 
     // Ralph keywords
-    if (hasActionableRalphKeyword(cleanPrompt, /\b(ralph)\b|(랄프)(?!로렌)|(ラルフ)(?!・?ローレン)/i)) {
+    if (hasActionableRalphKeyword(cleanPrompt, /\b(ralph)\b|(랄프)(?!로렌)|(ラルフ)(?!・?ローレン)/i, rawCleanPrompt)) {
       matches.push({ name: 'ralph', args: '' });
     }
 
