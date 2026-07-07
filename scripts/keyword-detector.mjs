@@ -1251,7 +1251,19 @@ async function main() {
     }
 
     // Ralph keywords
-    if (hasActionableKeyword(cleanPrompt, /\b(ralph|don't stop|must complete|until done)\b|(랄프)(?!로렌)|(ラルフ)(?!・?ローレン)/i)) {
+    // Suppress two non-invocation forms that the lowercased context filter
+    // cannot see (cleanPrompt is lowercased before isInformationalKeywordContext,
+    // so the capitalization signal is already gone): a leading proper-noun
+    // continuation ("Ralph Step 0a wiring", "Ralph Lauren") and a hyphenated
+    // identifier / filename ("ralph-step-0a.sh", "ralph-state.json"). These
+    // mention forms otherwise start a persistent ralph loop from prose that only
+    // discusses ralph. Checked on the case-preserved, echo-stripped prompt.
+    const ralphRaw = (looksLikeSystemEcho(prompt) ? stripSystemEchoes(prompt) : prompt).trim();
+    const isRalphMentionForm =
+      /^[Rr]alph\s+[A-Z]/.test(ralphRaw) ||   // leading proper-noun phrase
+      /\bralph-[a-z0-9]/i.test(ralphRaw);     // hyphenated identifier / filename
+    if (!isRalphMentionForm &&
+        hasActionableKeyword(cleanPrompt, /\b(ralph|don't stop|must complete|until done)\b|(랄프)(?!로렌)|(ラルフ)(?!・?ローレン)/i)) {
       matches.push({ name: 'ralph', args: '' });
     }
 
