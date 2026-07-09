@@ -1,3 +1,13 @@
+# vlh-stack
+
+> **vlh-stack** est le fork personnel de [**oh-my-claudecode**](https://github.com/Yeachan-Heo/oh-my-claudecode) (paquet `oh-my-claude-sisyphus`, © 2025 Yeachan Heo, licence MIT) maintenu par Vincent Lahaye.
+> Orienté **Claude + Codex + Gemini**, auto-installable (`install.sh` + `deps.json`), synchronisé avec l'amont ~1×/trimestre.
+> Rebrand **extérieur seulement** : en interne la CLI reste `omc` et les skills `/oh-my-claudecode:*` (aucune divergence avec l'amont).
+
+---
+
+*README d'origine oh-my-claudecode ci-dessous.*
+
 English | [한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Tiếng Việt](README.vi.md) | [Português](README.pt.md)
 
 # oh-my-claudecode

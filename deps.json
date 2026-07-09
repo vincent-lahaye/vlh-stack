@@ -1,0 +1,25 @@
+{
+  "_comment": "SOURCE UNIQUE DE VÉRITÉ des dépendances runtime de vlh-stack. Ajouter une dep = éditer CE fichier, jamais le devcontainer. Consommé par install.sh (plancher système) puis par `vlh-stack setup` (couche npm).",
+
+  "node": {
+    "_comment": "Plancher d'amorçage. install.sh l'installe si absent (nodesource sur apt, paquet nodejs+npm sur apk). NE PEUT PAS être installé par le setup node lui-même (paradoxe d'amorçage).",
+    "minMajor": 20
+  },
+
+  "system": {
+    "_comment": "Installé par install.sh via le gestionnaire détecté. Noms PAR gestionnaire (apt/apk d'abord ; dnf/brew extensibles). Requiert root ou sudo — sinon install.sh s'arrête avec un message clair.",
+    "packages": {
+      "git":  { "apt": "git",  "apk": "git",  "dnf": "git" },
+      "curl": { "apt": "curl", "apk": "curl", "dnf": "curl" },
+      "tmux": { "apt": "tmux", "apk": "tmux", "dnf": "tmux", "requiredBy": "omc-teams (workers claude/codex/gemini en panes)" }
+    }
+  },
+
+  "npmGlobals": {
+    "_comment": "Installé par `vlh-stack setup` une fois node présent. Les SECRETS ne sont jamais ici : l'auth est interactive/externe et persistée par bind devcontainer.",
+    "packages": {
+      "@google/gemini-cli": { "bin": "gemini", "auth": "login Google interactif — persisté via bind ~/.gemini" },
+      "@openai/codex":      { "bin": "codex",  "auth": "persisté via bind ~/.codex" }
+    }
+  }
+}

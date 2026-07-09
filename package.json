@@ -1,7 +1,7 @@
 {
-  "name": "oh-my-claude-sisyphus",
+  "name": "vlh-stack",
   "version": "4.15.3",
-  "description": "Multi-agent orchestration system for Claude Code - Inspired by oh-my-opencode",
+  "description": "vlh-stack — Vincent Lahaye's multi-agent stack for Claude Code, Codex & Gemini. Fork of oh-my-claudecode (oh-my-claude-sisyphus) by Yeachan Heo.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
