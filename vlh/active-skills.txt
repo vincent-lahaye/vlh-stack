@@ -1,25 +1,35 @@
 # vlh-stack — LISTE D'ACTIVATION des skills vendorisés.
 #
 # Vendoriser (vendor/) = matière disponible. ACTIVER = ce qui devient réellement
-# chargeable par Claude. On active un SOUS-ENSEMBLE CURÉ, pas les 96 (sinon on
-# noie la palette avec deprecated/personal/in-progress + 59 outils gstack).
+# chargeable par Claude (symlink dans ~/.claude/skills/<basename>). On active un
+# SOUS-ENSEMBLE CURÉ. Lignes vides / # ignorées. Édition libre + réversible.
 #
-# Une ligne = un chemin de skill sous vendor/. Le basename devient le nom du skill
-# actif (symlink dans ~/.claude/skills/<basename>). Lignes vides / # ignorées.
-# Éditez librement : l'activation est réversible (re-lancer l'installeur).
+# Principes de la sélection :
+#  - ADDITIF : on n'active pas ce qu'OMC/superpowers fournissent déjà
+#    (codebase-design, tdd, diagnosing-bugs, grilling, handoff, research,
+#     resolving-merge-conflicts, code-review, migrate-to-shoehorn,
+#     scaffold-exercises, setup-pre-commit, git-guardrails, writing-great-skills…).
+#  - AUTONOME : on n'active pas ce qui exige un runtime/tracker non câblé.
+#  - HORS deprecated/ personal/ in-progress/.
 #
-# Catalogue complet dispo :  find vendor -name SKILL.md -printf '%h\n' | sed 's#^vendor/##'
+# Catalogue complet :  find vendor -name SKILL.md -printf '%h\n' | sed 's#^vendor/##'
 
-# --- mpocock (pur markdown, activation = simple symlink) --------------------
+# === MPOCOCK — additifs & autonomes (ACTIFS) ===============================
 mattpocock-skills/skills/engineering/ask-matt
+mattpocock-skills/skills/engineering/implement
+mattpocock-skills/skills/engineering/prototype
+mattpocock-skills/skills/engineering/wayfinder
+mattpocock-skills/skills/engineering/improve-codebase-architecture
+mattpocock-skills/skills/engineering/grill-with-docs
 mattpocock-skills/skills/productivity/teach
 
-# --- À CURER (exemples — décommentez ce que vous voulez) --------------------
-# mattpocock-skills/skills/engineering/codebase-design
-# mattpocock-skills/skills/engineering/diagnosing-bugs
-# mattpocock-skills/skills/productivity/writing-great-skills
+# === MPOCOCK — EN ATTENTE (dépendent de setup-matt-pocock-skills : tracker) =
+# mattpocock-skills/skills/engineering/triage
+# mattpocock-skills/skills/engineering/to-spec
+# mattpocock-skills/skills/engineering/to-tickets
 
-# --- gstack : browse = PAS un simple symlink -------------------------------
-# Nécessite build du daemon + patch Chromium (BROWSE_CHROME_PATH) — voir
-# vendor/VENDORED.md. À câbler séparément, ne PAS activer par simple symlink.
+# === GSTACK — EN ATTENTE (dépendent du runtime gstack : daemon browse/gbrain)
+# À réactiver APRÈS câblage de browse (build daemon + patch Chromium, cf VENDORED.md).
+# Candidats à ce moment-là : design-review, design-consultation, design-shotgun,
+# devex-review, qa, qa-only, health, investigate, diagram, make-pdf, spec, careful.
 # garrytan-gstack/browse
