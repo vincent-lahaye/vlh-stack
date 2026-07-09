@@ -83,6 +83,13 @@ fi
 log "plancher OK → étage 2 : omc setup $*"
 node "$HERE/bin/oh-my-claudecode.js" setup "$@"
 
-# --- 6. étage 3 : activation des skills vendorisés (vlh-owned, hors src OMC) --
-log "activation des skills vendorisés (vlh/active-skills.txt)…"
-exec sh "$HERE/vlh/activate-vendored.sh"
+# --- 6. étage 3 : browse (opt-in — le build est lourd) -----------------------
+# gstack/browse vendorisé seul (vendor/gstack-browse). Activé sur demande via
+# VLH_WITH_BROWSE=1 (ou `--with-browse`), car son build compile un binaire ~95 Mo.
+case " $* " in *" --with-browse "*) VLH_WITH_BROWSE=1 ;; esac
+if [ "${VLH_WITH_BROWSE:-0}" = "1" ]; then
+  log "étage 3 : câblage de browse…"
+  sh "$HERE/vlh/wire-browse.sh"
+else
+  log "browse non câblé (opt-in : VLH_WITH_BROWSE=1 ou --with-browse). Setup terminé."
+fi

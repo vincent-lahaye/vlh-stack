@@ -1,0 +1,14 @@
+{
+  "name": "gstack-browse-vendored",
+  "version": "0.0.0",
+  "private": true,
+  "description": "browse — le CLI navigateur headless de gstack, vendorisé seul (source-autonome). Voir VENDORED.md.",
+  "dependencies": {
+    "playwright": "1.58.2",
+    "diff": "7.0.0",
+    "socks": "2.8.8"
+  },
+  "scripts": {
+    "build": "bun build --compile browse/src/cli.ts --outfile browse/dist/browse"
+  }
+}
