@@ -81,4 +81,8 @@ fi
 # `--link` s'appuie sur le mode devpath EXISTANT d'OMC (symlink dans launch.ts /
 # installer), à confirmer sur le fork buildé — pas de code --link en double.
 log "plancher OK → étage 2 : omc setup $*"
-exec node "$HERE/bin/oh-my-claudecode.js" setup "$@"
+node "$HERE/bin/oh-my-claudecode.js" setup "$@"
+
+# --- 6. étage 3 : activation des skills vendorisés (vlh-owned, hors src OMC) --
+log "activation des skills vendorisés (vlh/active-skills.txt)…"
+exec sh "$HERE/vlh/activate-vendored.sh"

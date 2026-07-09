@@ -1,0 +1,25 @@
+# vlh-stack — LISTE D'ACTIVATION des skills vendorisés.
+#
+# Vendoriser (vendor/) = matière disponible. ACTIVER = ce qui devient réellement
+# chargeable par Claude. On active un SOUS-ENSEMBLE CURÉ, pas les 96 (sinon on
+# noie la palette avec deprecated/personal/in-progress + 59 outils gstack).
+#
+# Une ligne = un chemin de skill sous vendor/. Le basename devient le nom du skill
+# actif (symlink dans ~/.claude/skills/<basename>). Lignes vides / # ignorées.
+# Éditez librement : l'activation est réversible (re-lancer l'installeur).
+#
+# Catalogue complet dispo :  find vendor -name SKILL.md -printf '%h\n' | sed 's#^vendor/##'
+
+# --- mpocock (pur markdown, activation = simple symlink) --------------------
+mattpocock-skills/skills/engineering/ask-matt
+mattpocock-skills/skills/productivity/teach
+
+# --- À CURER (exemples — décommentez ce que vous voulez) --------------------
+# mattpocock-skills/skills/engineering/codebase-design
+# mattpocock-skills/skills/engineering/diagnosing-bugs
+# mattpocock-skills/skills/productivity/writing-great-skills
+
+# --- gstack : browse = PAS un simple symlink -------------------------------
+# Nécessite build du daemon + patch Chromium (BROWSE_CHROME_PATH) — voir
+# vendor/VENDORED.md. À câbler séparément, ne PAS activer par simple symlink.
+# garrytan-gstack/browse
