@@ -77,9 +77,18 @@ else
   log "dist/ à jour — build sauté"
 fi
 
+# --- 4b. exposer la CLI `omc` (symlink dans ~/.local/bin, déjà sur le PATH) ---
+# Sans sudo. Le bin a un shebang `#!/usr/bin/env node`, donc le symlink direct
+# suffit (pas besoin de `npm link` ni d'écrire dans /usr).
+BIN_DIR="${HOME}/.local/bin"
+mkdir -p "$BIN_DIR"
+chmod +x "$HERE/bin/oh-my-claudecode.js" 2>/dev/null || true
+for b in omc oh-my-claudecode; do
+  ln -sf "$HERE/bin/oh-my-claudecode.js" "$BIN_DIR/$b"
+done
+log "CLI exposée : $BIN_DIR/{omc,oh-my-claudecode} → fork"
+
 # --- 5. étage 2 : setup node (CLI npm gemini/codex, subtrees, symlinks ~/.claude)
-# `--link` s'appuie sur le mode devpath EXISTANT d'OMC (symlink dans launch.ts /
-# installer), à confirmer sur le fork buildé — pas de code --link en double.
 log "plancher OK → étage 2 : omc setup $*"
 node "$HERE/bin/oh-my-claudecode.js" setup "$@"
 
