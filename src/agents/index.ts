@@ -30,6 +30,8 @@ export { exploreAgent, EXPLORE_PROMPT_METADATA } from './explore.js';
 export { executorAgent, EXECUTOR_PROMPT_METADATA } from './executor.js';
 export { designerAgent, FRONTEND_ENGINEER_PROMPT_METADATA } from './designer.js';
 export { writerAgent, DOCUMENT_WRITER_PROMPT_METADATA } from './writer.js';
+export { copyReviewerAgent, COPY_REVIEWER_PROMPT_METADATA } from './copy-reviewer.js';
+export { translatorFrAgent, TRANSLATOR_FR_PROMPT_METADATA } from './translator-fr.js';
 export { criticAgent, CRITIC_PROMPT_METADATA } from './critic.js';
 export { analystAgent, ANALYST_PROMPT_METADATA } from './analyst.js';
 export { plannerAgent, PLANNER_PROMPT_METADATA } from './planner.js';

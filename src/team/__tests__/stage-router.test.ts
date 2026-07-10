@@ -52,6 +52,8 @@ const EXPECTED_DEFAULTS: Record<CanonicalTeamRole, { model: string; agent: strin
   'test-engineer': { model: CLAUDE_FAMILY_DEFAULTS.SONNET, agent: 'testEngineer' },
   designer: { model: CLAUDE_FAMILY_DEFAULTS.SONNET, agent: 'designer' },
   writer: { model: CLAUDE_FAMILY_DEFAULTS.HAIKU, agent: 'writer' },
+  'copy-reviewer': { model: CLAUDE_FAMILY_DEFAULTS.SONNET, agent: 'copyReviewer' },
+  'translator-fr': { model: CLAUDE_FAMILY_DEFAULTS.SONNET, agent: 'translatorFr' },
   'code-simplifier': { model: CLAUDE_FAMILY_DEFAULTS.OPUS, agent: 'codeSimplifier' },
   explore: { model: CLAUDE_FAMILY_DEFAULTS.HAIKU, agent: 'explore' },
   'document-specialist': { model: CLAUDE_FAMILY_DEFAULTS.SONNET, agent: 'documentSpecialist' },

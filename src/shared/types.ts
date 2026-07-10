@@ -72,6 +72,8 @@ export interface PluginConfig {
     testEngineer?: { model?: string };
     designer?: { model?: string };
     writer?: { model?: string };
+    copyReviewer?: { model?: string };
+    translatorFr?: { model?: string };
     qaTester?: { model?: string };
     scientist?: { model?: string };
     tracer?: { model?: string };
@@ -457,6 +459,8 @@ export const CANONICAL_TEAM_ROLES = [
   'test-engineer',
   'designer',
   'writer',
+  'copy-reviewer',
+  'translator-fr',
   'code-simplifier',
   'explore',
   'document-specialist',
@@ -488,6 +492,8 @@ export const KNOWN_AGENT_NAMES = [
   'testEngineer',
   'designer',
   'writer',
+  'copyReviewer',
+  'translatorFr',
   'qaTester',
   'scientist',
   'tracer',

@@ -18,6 +18,8 @@ import { appendSkininthegamebrosGuidance } from './skininthegamebros-guidance.js
 export { architectAgent } from './architect.js';
 export { designerAgent } from './designer.js';
 export { writerAgent } from './writer.js';
+export { copyReviewerAgent } from './copy-reviewer.js';
+export { translatorFrAgent } from './translator-fr.js';
 export { criticAgent } from './critic.js';
 export { analystAgent } from './analyst.js';
 export { executorAgent } from './executor.js';
@@ -33,6 +35,8 @@ export { documentSpecialistAgent } from './document-specialist.js';
 import { architectAgent } from './architect.js';
 import { designerAgent } from './designer.js';
 import { writerAgent } from './writer.js';
+import { copyReviewerAgent } from './copy-reviewer.js';
+import { translatorFrAgent } from './translator-fr.js';
 import { criticAgent } from './critic.js';
 import { analystAgent } from './analyst.js';
 import { executorAgent } from './executor.js';
@@ -163,6 +167,8 @@ const AGENT_CONFIG_KEY_MAP = {
   'test-engineer': 'testEngineer',
   designer: 'designer',
   writer: 'writer',
+  'copy-reviewer': 'copyReviewer',
+  'translator-fr': 'translatorFr',
   'qa-tester': 'qaTester',
   scientist: 'scientist',
   tracer: 'tracer',
@@ -234,6 +240,8 @@ export function getAgentDefinitions(options?: {
     'test-engineer': testEngineerAgent,
     designer: designerAgent,
     writer: writerAgent,
+    'copy-reviewer': copyReviewerAgent,
+    'translator-fr': translatorFrAgent,
     'qa-tester': qaTesterAgent,
     scientist: scientistAgent,
     tracer: tracerAgent,
@@ -296,7 +304,7 @@ You are BOUND to your task list. You do not stop. You do not quit. You do not ta
 ## Your Core Duty
 You coordinate specialized subagents to accomplish complex software engineering tasks. Abandoning work mid-task is not an option. If you stop without completing ALL tasks, you have failed.
 
-## Available Subagents (19 Agents)
+## Available Subagents (21 Agents)
 
 ### Build/Analysis Lane
 - **explore**: Internal codebase discovery (haiku) — fast pattern matching
@@ -316,6 +324,8 @@ You coordinate specialized subagents to accomplish complex software engineering 
 - **test-engineer**: Test strategy (sonnet) — coverage, flaky test hardening
 - **designer**: UI/UX architecture (sonnet) — interaction design
 - **writer**: Documentation (haiku) — docs, migration notes
+- **copy-reviewer**: Copy & prose review (sonnet) — AI-slop, awkward phrasing, redundancy, bloat in human-facing copy
+- **translator-fr**: English→French translation (sonnet) — product copy, UI strings, docs
 - **qa-tester**: CLI testing (sonnet) — interactive runtime validation via tmux
 - **scientist**: Data analysis (sonnet) — statistics and research
 - **git-master**: Git operations (sonnet) — commits, rebasing, history

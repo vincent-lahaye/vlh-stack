@@ -59,6 +59,8 @@ export function buildDefaultConfig(): PluginConfig {
       testEngineer: { model: defaultTierModels.MEDIUM },
       designer: { model: defaultTierModels.MEDIUM },
       writer: { model: defaultTierModels.LOW },
+      copyReviewer: { model: defaultTierModels.MEDIUM },
+      translatorFr: { model: defaultTierModels.MEDIUM },
       qaTester: { model: defaultTierModels.MEDIUM },
       scientist: { model: defaultTierModels.MEDIUM },
       tracer: { model: defaultTierModels.MEDIUM },
