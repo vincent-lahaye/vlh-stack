@@ -762,6 +762,37 @@ function configureInstallerSettings(
     } else {
       context.log('  statusLine already configured, skipping (use --force to override)');
     }
+
+    // Non-plugin installs (npm, local dev, forks) are not always discoverable
+    // by the HUD wrapper's package-name or plugin-cache fallbacks — a fork
+    // published under a different package name (e.g. vlh-stack) resolves via
+    // none of them, so the status line renders "Plugin not installed" despite a
+    // valid install. Wire OMC_PLUGIN_ROOT (the wrapper's highest-priority
+    // resolution) to this install's built HUD so it always renders. Self-healing:
+    // the wrapper guards it with existsSync and falls through to its other
+    // resolution steps if the path ever goes stale. Skip plugin installs — those
+    // are resolved by Claude Code's plugin lifecycle, and pinning a version-
+    // specific cache dir here would go stale on upgrade.
+    if (!context.runningAsPlugin) {
+      try {
+        const pkgRoot = getPackageDir();
+        if (existsSync(join(pkgRoot, 'dist', 'hud', 'index.js'))) {
+          const env = (settings.env && typeof settings.env === 'object')
+            ? { ...(settings.env as Record<string, unknown>) }
+            : {};
+          const current = typeof env.OMC_PLUGIN_ROOT === 'string' ? env.OMC_PLUGIN_ROOT : '';
+          const currentResolves = current.length > 0
+            && existsSync(join(current, 'dist', 'hud', 'index.js'));
+          if (!currentResolves) {
+            env.OMC_PLUGIN_ROOT = pkgRoot;
+            settings.env = env;
+            context.log('  Wired OMC_PLUGIN_ROOT for HUD resolution');
+          }
+        }
+      } catch {
+        // Best-effort: HUD env wiring must never break setup.
+      }
+    }
   }
 
   const mcpSync = syncUnifiedMcpRegistryTargets(settings);
